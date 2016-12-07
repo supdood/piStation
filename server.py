@@ -17,15 +17,64 @@ import txthings.coap as coap
 ##
 import pygame
 import time
+import threading, time
+import sys
 
-##IOT addition
-
+## music player
 pygame.init()
 pygame.mixer.init()
+m_dir = "music/"
+songs = ["Second Chance.wav", "5.mp3", "4.mp3"]
+i = 0
 
-if pygame.mixer:
-    pygame.mixer.music.load('Second Chance.wav')
+def start_queue(e, t):
+    global i
+    pygame.mixer.music.load(m_dir + songs[i])
+    pygame.mixer.music.play(i)
+    
+    while True:
+        if not pygame.mixer.music.get_busy():
+            if i < len(songs) - 1:
+                i += 1
+            else:
+                i = 0
+            pygame.mixer.music.load(m_dir + songs[i])
+            pygame.mixer.music.play(0)
+        time.sleep(0.5)
 
+def play():
+    if pygame.mixer.music.get_busy():
+        pygame.mixer.music.pause()
+    else:
+        pygame.mixer.music.unpause()
+        
+
+def next_song():
+    global i
+    if i < len(songs) - 1:
+        i += 1
+    else:
+        i = 0
+    pygame.mixer.music.load(m_dir + songs[i])
+    pygame.mixer.music.play(0)
+
+def prev_song():
+    global i
+    if i == 0:
+        i = len(songs)-1
+    else:
+        i -= 1
+    pygame.mixer.music.load(m_dir + songs[i])
+    pygame.mixer.music.play(0)
+
+    
+### start the player in it's own thread
+
+
+e = threading.Event()
+t = threading.Thread(name='thread', target=start_queue, args=(e, 2))
+t.start()
+    
 ###
 
 class PlayResource(resource.CoAPResource):
@@ -33,7 +82,7 @@ class PlayResource(resource.CoAPResource):
         resource.CoAPResource.__init__(self)
         self.visible = True
         self.observable = True
-
+        e.set()
         self.notify()
 
     def notify(self):
@@ -45,10 +94,10 @@ class PlayResource(resource.CoAPResource):
         print 'PUT payload: ' + request.payload
         payload = "Now playing music."
         response = coap.Message(code=coap.CHANGED, payload=payload)
-        pygame.mixer.music.play(1, 0.0)
+        play()
         return defer.succeed(response)
-    
-class PauseResource(resource.CoAPResource):
+
+class NextResource(resource.CoAPResource):
     def __init__(self):
         resource.CoAPResource.__init__(self)
         self.visible = True
@@ -57,15 +106,35 @@ class PauseResource(resource.CoAPResource):
         self.notify()
 
     def notify(self):
-        log.msg('PauseResource: ')
+        log.msg('NextResource: ')
         self.updatedState()
         reactor.callLater(60, self.notify)
 
     def render_PUT(self, request):
         print 'PUT payload: ' + request.payload
-        payload = "Music paused."
+        payload = "Playing next song."
         response = coap.Message(code=coap.CHANGED, payload=payload)
-        pygame.mixer.music.pause()
+        next_song()
+        return defer.succeed(response)
+
+class PrevResource(resource.CoAPResource):
+    def __init__(self):
+        resource.CoAPResource.__init__(self)
+        self.visible = True
+        self.observable = True
+
+        self.notify()
+
+    def notify(self):
+        log.msg('PrevResource: ')
+        self.updatedState()
+        reactor.callLater(60, self.notify)
+
+    def render_PUT(self, request):
+        print 'PUT payload: ' + request.payload
+        payload = "Playing previous song."
+        response = coap.Message(code=coap.CHANGED, payload=payload)
+        prev_song()
         return defer.succeed(response)
 
 # Resource tree creation
@@ -74,11 +143,16 @@ root = resource.CoAPResource()
 
 
 ###IOT addition
-pause = PauseResource()
-root.putChild('pause', pause)
 
 play = PlayResource()
 root.putChild('play', play)
+
+next_res = NextResource()
+root.putChild('next', next_res)
+
+prev = PrevResource()
+root.putChild('prev', prev)
+
 ###
 
 endpoint = resource.Endpoint(root)

@@ -31,7 +31,7 @@ repeatFlag = False
 paused = False
 listOfSongs = ["Second Chance.wav", "3.mp3", "4.mp3", "5.mp3"]
 repeat = "true"
-stopIndict = "false"
+stopIndict = False
 ###
 
 #play a song from the front of the queue
@@ -59,24 +59,31 @@ class PlayResource(resource.CoAPResource):
         global songSep
         global currentSong
         global nextSong
+        global stopIndict
         print 'PUT payload: ' + request.payload
-        nextSep = UNQueue.find(',')
-        nextSong = UNQueue[0:nextSep]
-        currentSong = nextSong
-        if(currentSong == ""):  #if their is no current song playing 
+        if(stopIndict == False):        #if the song wasn't previously stopped, play the stopped song
+            nextSep = UNQueue.find(',')
+            nextSong = UNQueue[0:nextSep]
+            currentSong = nextSong
+            if(currentSong == ""):  #if their is no current song playing 
+                if(UNQueue == ""):   #if queue is empty
+                    currentSong = listOfSongs[randint(0,3)]  #select a random song from library
+                else:                                        #or find the next song based on delminter postion
+                    songSep = UNQueue.find(",")
+                    currentSong = UNQueue[0:songSep]
             
-           if(UNQueue == ""):   #if queue is empty
-               currentSong = listOfSongs[randint(0,3)]  #select a random song from library
-           else:                                        #or find the next song based on delminter postion
-               songSep = UNQueue.find(",")
-               currentSong = UNQueue[0:songSep]
-        pygame.mixer.music.load(currentSong)            #load and play song
-        pygame.mixer.music.play(1, 0.0)
-        if(repeatFlag == True):                 #update queue according to repeatFlag
-            UNQueue = UNQueue[(songSep + 1):] + (currentSong + ",")
-        elif(repeatFlag == False):
-            UNQueue = UNQueue[(songSep + 1):]
-        response = coap.Message(code=coap.CHANGED, payload=UNQueue)
+            pygame.mixer.music.load(currentSong)            #load and play song
+            pygame.mixer.music.play(1, 0.0)
+            if(repeatFlag == True):                 #update queue according to repeatFlag
+                UNQueue = UNQueue[(songSep + 1):] + (currentSong + ",")
+            elif(repeatFlag == False):
+                UNQueue = UNQueue[(songSep + 1):]
+            response = coap.Message(code=coap.CHANGED, payload="Random Song")
+        else:
+            stopIndict = False
+            pygame.mixer.music.load(currentSong)            #load and play song
+            pygame.mixer.music.play(1, 0.0)
+            response = coap.Message(code=coap.CHANGED, payload=("Playing: " + currentSong))
         return defer.succeed(response)
 
 #pause and unpause the music player
@@ -158,10 +165,11 @@ class StopResource(resource.CoAPResource):
         reactor.callLater(60, self.notify)
         
     def render_PUT(self, request):
+        global stopIndict
         print 'STOP' + request.payload
         pygame.mixer.music.stop()
-        UNQueue = ""
         response = coap.Message(code=coap.CHANGED, payload="Stopping music")
+        stopIndict = True
         return (defer.succeed(response))
     
 #toggle whether or not the queue will delete songs from itself or loop them   

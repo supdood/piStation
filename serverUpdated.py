@@ -30,7 +30,6 @@ songSep = 0
 repeatFlag = False
 paused = False
 listOfSongs = ["Second Chance.wav", "3.mp3", "4.mp3", "5.mp3"]
-repeat = "true"
 stopIndict = False
 ###
 
@@ -71,14 +70,17 @@ class PlayResource(resource.CoAPResource):
                 else:                                        #or find the next song based on delminter postion
                     songSep = UNQueue.find(",")
                     currentSong = UNQueue[0:songSep]
+                    response = coap.Message(code=coap.CHANGED, payload="Random Song")
             
             pygame.mixer.music.load(currentSong)            #load and play song
             pygame.mixer.music.play(1, 0.0)
             if(repeatFlag == True):                 #update queue according to repeatFlag
+                songSep = UNQueue.find(",")
                 UNQueue = UNQueue[(songSep + 1):] + (currentSong + ",")
             elif(repeatFlag == False):
+                songSep = UNQueue.find(",")
                 UNQueue = UNQueue[(songSep + 1):]
-            response = coap.Message(code=coap.CHANGED, payload="Random Song")
+            response = coap.Message(code=coap.CHANGED, payload="Playing: " + currentSong)
         else:
             stopIndict = False
             pygame.mixer.music.load(currentSong)            #load and play song
@@ -227,8 +229,10 @@ class SkipResource(resource.CoAPResource):
             songSep = UNQueue.find(",")
             currentSong = UNQueue[0:songSep]
         if(repeatFlag == True):
+            songSep = UNQueue.find(",")
             UNQueue = UNQueue[(songSep + 1):] + (currentSong + ",")
         elif(repeatFlag == False):
+            songSep = UNQueue.find(",")
             UNQueue = UNQueue[(songSep + 1):]
         pygame.mixer.music.load(currentSong)
         pygame.mixer.music.play(1, 0.0)

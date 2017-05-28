@@ -10,11 +10,11 @@ import txthings.resource as resource
 import txthings.coap as coap
 
 
-class SongResource (coap.Resource, name):
+class SongResource (resource.CoAPResource):
     def __init__(self, start=0):
         resource.CoAPResource.__init__(self)
         self.visible = True
-        self.songName = name
+        self.songName = ""
         self.addParam(resource.LinkParam("title", "Song Resource"))
 
     def render_GET(self, request):
@@ -59,22 +59,29 @@ root = resource.CoAPResource()
 library = resource.CoAPResource()
 root.putChild('Library', library)
 
+well_known = resource.CoAPResource()
+root.putChild('.well-known', well_known)
 core = CoreResource(root)
-library.putChild('core', core)
+well_known.putChild('core', core)
 
-song1 = SongResource('1')
+song1 = SongResource()
+song1.name = "1"
 library.putChild('Song 1', song1)
 
-song2 = SongResource('2')
+song2 = SongResource()
+song2.name = "2"
 library.putChild('Song 2', song2)
 
-song3 = SongResource('3')
+song3 = SongResource()
+song3.name = "3"
 library.putChild('Song 3', song3)
 
-song4 = SongResouce('4')
+song4 = SongResource()
+song4.name = "4"
 library.putChild('Song 4', song4)
 
-song5 = SongResource('5')
+song5 = SongResource()
+song5.name = "5"
 library.putChild('Song 5', song5)
 
 endpoint = resource.Endpoint(root)
